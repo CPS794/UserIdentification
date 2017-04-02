@@ -36,20 +36,5 @@ for inFileName in inList:
 	for x in usefulInfo[len(usefulInfo)-3].stripped_strings:
 		if (x.find("互联网") != -1):
 			collectedInfo["个性域名"] = x[len("互联网:http://weibo.com/"):]
-	print(collectedInfo)
+	# print(collectedInfo)
 	collection.insert_one(collectedInfo)
-
-# inFile = codecs.open("72.html", "r", "utf-8")
-# content = inFile.read()
-# inFile.close()
-# soup = BeautifulSoup(content, "html5lib")
-# l = soup.find_all("div", "c")
-# l = soup.select("[.c]")
-# l[0].img.attrs['alt']
-# l[0].img.attrs['src']
-
-# print(soup.title.string)
-
-# outFile = codecs.open("72.out", "w", "utf-8")
-# outFile.write(soup.title.string)
-# outFile.close()
