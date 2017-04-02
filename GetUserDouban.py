@@ -9,16 +9,16 @@ client = MongoClient()
 db = client.uinfo
 collection = db.douban_original
 
-inList = open("72.list", "r").readlines();
+inList = open("243.list", "r").readlines();
 print(len(inList))
 
 for inFileName in inList:
-	inFile = codecs.open(inFileName[:len(inFileName)-1]+".html", "r", "utf-8")
+	inFile = codecs.open("D:\\Projects\\SublimeText\\Jianshu\\243\\D\\"+inFileName[:len(inFileName)-1]+".html", "r", "utf-8")
 	content = inFile.read()
 	inFile.close()
 	soup = BeautifulSoup(content, "html5lib")
-	failed = soup.find_all("div", "mn")
-	if len(failed) > 0:
+	failed = soup.find_all("div", "pic")
+	if len(failed) == 0:
 		print("该用户已经主动注销帐号: "+inFileName[:len(inFileName)-1])
 	else:
 		collectedInfo = {"id":inFileName[:len(inFileName)-1]}
