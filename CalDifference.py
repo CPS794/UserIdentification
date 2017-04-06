@@ -7,7 +7,7 @@ import Levenshtein
 
 BASIC_LIST=["地区", "个性域名", "昵称"]
 COUNT_LIST=["详情", "简介"]
-WEIGHT={"昵称":10,"个性域名":7,"地区":3,"详情":1,"简介":1}
+WEIGHT={"昵称":10,"个性域名":7,"地区":5,"详情":2,"简介":1}
 
 client = MongoClient()
 db = client.uinfo
@@ -15,21 +15,36 @@ weibo = db.weibo
 douban = db.douban
 inList = open("243.list", "r").readlines();
 print(len(inList))
+userList = []
+userId = {}
+for user in inList:
+	userList.append(user[:len(user)-1])
+	userId[user[:len(user)-1]] = len(userList)-1
+
+matrix = {}
+result = []
+match = {}
+winfo = []
+dinfo = []
+
+for user in userList:
+	winfo.append(weibo.find_one({"id":user}))
+	dinfo.append(douban.find_one({"id":user}))
 
 matrix = {}
 result = {}
 match = {}
 
 # outFile = codecs.open("72.out", "w", "utf-8")
-for weiboUser in inList:
-	weiboId=weiboUser[:len(weiboUser)-1]
-	weiboInfo = weibo.find_one({"id":weiboId})
+for wid in range(len(userList)):
+	weiboId=userList[wid]
+	weiboInfo = winfo[wid]
 	matrix[weiboId]={"id":weiboId}
 	result[weiboId]={}
 
-	for doubanUser in inList:
-		doubanId = doubanUser[:len(doubanUser)-1]
-		doubanInfo = douban.find_one({"id":doubanId})
+	for did in range(len(userList)):
+		doubanId = userList[did]
+		doubanInfo = dinfo[did]
 		matrix[weiboId][doubanId]={"id":doubanId}
 
 		for attribute in BASIC_LIST:
@@ -68,16 +83,18 @@ for weiboUser in inList:
 		score /= weight
 		result[weiboId][doubanId]=score
 					
-for i in inList:
-	score = 0.1
-	for j in inList:
-		weiboId=i[:len(i)-1]
-		doubanId=j[:len(j)-1]
+for weiboId in userList:
+	score = 0
+	for doubanId in userList:
 		if result[weiboId][doubanId] > score :
 			score = result[weiboId][doubanId]
 			match[weiboId] = doubanId
 	# print(score)
 
 # print(match)
+count = 0
 for x in match:
-	print("%s\t%s" %(x,match[x]))
+	# print("%s\t%s" %(x,match[x]))
+	if x==match[x]:
+		count += 1
+print(count)
