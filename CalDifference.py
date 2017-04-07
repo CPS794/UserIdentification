@@ -17,23 +17,20 @@ inList = open("243.list", "r").readlines();
 print(len(inList))
 userList = []
 userId = {}
+winfo = []
+dinfo = []
+matrix = {}
+result = {}
+match = {}
+
 for user in inList:
 	userList.append(user[:len(user)-1])
 	userId[user[:len(user)-1]] = len(userList)-1
-
-matrix = {}
-result = []
-match = {}
-winfo = []
-dinfo = []
 
 for user in userList:
 	winfo.append(weibo.find_one({"id":user}))
 	dinfo.append(douban.find_one({"id":user}))
 
-matrix = {}
-result = {}
-match = {}
 
 # outFile = codecs.open("72.out", "w", "utf-8")
 for wid in range(len(userList)):
@@ -97,4 +94,8 @@ for x in match:
 	# print("%s\t%s" %(x,match[x]))
 	if x==match[x]:
 		count += 1
+	else:
+		print("%s\t%s\t%s\t%s\t%s\t%s\t" %(x,match[x],result[x][x],result[x][match[x]],matrix[x][x]["昵称"],matrix[x][match[x]]["昵称"]))
+		# print(matrix[x][x],matrix[x][match[x]])
+	
 print(count)
