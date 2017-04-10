@@ -4,16 +4,18 @@ import codecs
 import pymongo
 from pymongo import MongoClient
 import Levenshtein
+import numpy as np
+from sklearn import svm
 
 BASIC_LIST=["地区", "个性域名", "昵称"]
 COUNT_LIST=["详情", "简介"]
-WEIGHT={"昵称":10,"个性域名":7,"地区":5,"详情":2,"简介":1}
+WEIGHT={"昵称":10,"个性域名":7,"地区":5,"详情":2,"简介":1}# 
 
 client = MongoClient()
 db = client.uinfo
 weibo = db.weibo
 douban = db.douban
-inList = open("243.list", "r").readlines();
+inList = open("243.list", "r").readlines()
 print(len(inList))
 userList = []
 userId = {}
@@ -74,7 +76,7 @@ for wid in range(len(userList)):
 		score = 0
 		weight = 0
 		for x in matrix[weiboId][doubanId]:
-			if x!="id":
+			if x!="id" and x in WEIGHT:
 				score += matrix[weiboId][doubanId][x]
 				weight += WEIGHT[x]
 		score /= weight
@@ -99,3 +101,54 @@ for x in match:
 		# print(matrix[x][x],matrix[x][match[x]])
 	
 print(count)
+
+tempMatrix = []
+tagMatrix = []
+for wid in range(len(userList)):
+	weiboId=userList[wid]
+	for did in range(len(userList)):
+		doubanId=userList[did]
+		row = [] 
+		for weight in WEIGHT:
+			if (weight in matrix[weiboId][doubanId]):
+				row.append(matrix[weiboId][doubanId][weight])
+			else:
+				row.append(-1.0)
+		tempMatrix.append(row)
+		if (did==wid): 
+			tagMatrix.append(1)
+		else:
+			tagMatrix.append(0)
+# print(tempMatrix)			
+data = np.array(tempMatrix)
+target = np.array(tagMatrix)
+print(data)
+print(target)
+
+k=int(len(userList)/2)
+n=k*len(userList)
+clf = svm.SVC(gamma=0.1, C=1000000.)
+clf.fit(data[:n], target[:n]) 
+ans = clf.predict(data[n:])
+output = list(ans)
+outFile = codecs.open("72.out", "w", "utf-8")
+m=len(userList)
+i=0
+j=0
+cnt=0
+for x in output:
+	if (x==1):
+		# outFile.write("%s %s %s" %(i,j,k))
+		if (i==k+j):
+			cnt+=1
+			outFile.write("%s " %(i))
+		else:
+			outFile.write("%s " %(-1))			
+	i+=1
+	# outFile.write("%s " %(x))
+	if (i==m):
+		outFile.write("\n")
+		j+=1
+		i=0
+outFile.write("Count:%s\n" %(cnt))
+outFile.write("Total:%s\n" %(j))
