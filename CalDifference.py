@@ -3,9 +3,11 @@
 import codecs
 import pymongo
 from pymongo import MongoClient
+from geopy.distance import vincenty
 import Levenshtein
 import numpy as np
 from sklearn import svm
+
 
 BASIC_LIST=["地区", "个性域名", "昵称"]
 COUNT_LIST=["详情", "简介"]
@@ -15,7 +17,8 @@ client = MongoClient()
 db = client.uinfo
 weibo = db.weibo
 douban = db.douban
-inList = open("243.list", "r").readlines()
+geocode = db.geocode
+inList = open("72.list", "r").readlines()
 print(len(inList))
 userList = []
 userId = {}
@@ -24,6 +27,7 @@ dinfo = []
 matrix = {}
 result = {}
 match = {}
+geoList = {}
 
 for user in inList:
 	userList.append(user[:len(user)-1])
@@ -33,6 +37,14 @@ for user in userList:
 	winfo.append(weibo.find_one({"id":user}))
 	dinfo.append(douban.find_one({"id":user}))
 
+for geo in geocode.find({},{"_id":0}):
+	geoList[geo['name']]=geo['detail'][0]['geometry']['location']
+# print(geoList)
+
+N=(0,89.5)
+S=(0,-89.5)
+MAX_DISTANCE = vincenty(N, S).miles
+# print(MAX_DISTANCE)
 
 # outFile = codecs.open("72.out", "w", "utf-8")
 for wid in range(len(userList)):
@@ -54,6 +66,16 @@ for wid in range(len(userList)):
 					if not(sw[0]=='u' or sd.isdigit()):
 						matrix[weiboId][doubanId][attribute] = Levenshtein.jaro_winkler(sw,sd)
 						# outFile.write("%s\t%s - %s:\t%s\t%s\t%s\t%s\n" %(weiboInfo["id"],sw,sd,Levenshtein.distance(sw,sd),Levenshtein.ratio(sw,sd),Levenshtein.jaro(sw,sd),Levenshtein.jaro_winkler(sw,sd)))
+				elif attribute=="地区":
+					sw=sw.replace("海外","").replace("其他","")
+					sd=sd.replace("海外","").replace("其他","")
+					if (len(sw)>0 and len(sd)>0):
+						weiboLocation = (geoList[sw]['lat'], geoList[sw]['lng'])
+						doubanLocation = (geoList[sd]['lat'], geoList[sd]['lng'])
+						distance = vincenty(weiboLocation, doubanLocation).miles
+						matrix[weiboId][doubanId][attribute] = (1 - distance / MAX_DISTANCE) ** 500
+						# if (wid==did):
+						# 	print("%s\t%s - %s:\t%s\t%s" %(weiboInfo["id"],sw,sd,distance,matrix[weiboId][doubanId][attribute]))
 				else:
 					matrix[weiboId][doubanId][attribute] = Levenshtein.jaro_winkler(sw,sd)
 				
@@ -96,8 +118,8 @@ for x in match:
 	# print("%s\t%s" %(x,match[x]))
 	if x==match[x]:
 		count += 1
-	else:
-		print("%s\t%s\t%s\t%s\t%s\t%s\t" %(x,match[x],result[x][x],result[x][match[x]],matrix[x][x]["昵称"],matrix[x][match[x]]["昵称"]))
+	# else:
+	# 	print("%s\t%s\t%s\t%s\t%s\t%s\t" %(x,match[x],result[x][x],result[x][match[x]],matrix[x][x]["昵称"],matrix[x][match[x]]["昵称"]))
 		# print(matrix[x][x],matrix[x][match[x]])
 	
 print(count)
@@ -122,12 +144,12 @@ for wid in range(len(userList)):
 # print(tempMatrix)			
 data = np.array(tempMatrix)
 target = np.array(tagMatrix)
-print(data)
-print(target)
+# print(data)
+# print(target)
 
 k=int(len(userList)/2)
 n=k*len(userList)
-clf = svm.SVC(gamma=0.1, C=1000000.)
+clf = svm.SVC(gamma=0.001, C=1000000.)
 clf.fit(data[:n], target[:n]) 
 ans = clf.predict(data[n:])
 output = list(ans)
@@ -150,5 +172,7 @@ for x in output:
 		outFile.write("\n")
 		j+=1
 		i=0
-outFile.write("Count:%s\n" %(cnt))
-outFile.write("Total:%s\n" %(j))
+# outFile.write("Count:%s\n" %(cnt))
+# outFile.write("Total:%s\n" %(j))
+print("Count: %s" %(cnt))
+print("Total: %s" %(j))
