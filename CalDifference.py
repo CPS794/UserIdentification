@@ -7,102 +7,212 @@ from geopy.distance import vincenty
 import Levenshtein
 import numpy as np
 from sklearn import svm
-
+from sklearn.feature_extraction.text import CountVectorizer
+from sklearn.feature_extraction.text import TfidfTransformer
+from sklearn.metrics.pairwise import cosine_similarity
 
 BASIC_LIST=["地区", "个性域名", "昵称"]
 COUNT_LIST=["详情", "简介"]
-WEIGHT={"昵称":10,"个性域名":7,"地区":5,"详情":2,"简介":1}# 
+WEIGHT={"昵称":7,"个性域名":5,"地区":4,"简介":3,"详情":2} # 
 
-client = MongoClient()
-db = client.uinfo
-weibo = db.weibo
-douban = db.douban
-geocode = db.geocode
-inList = open("72.list", "r").readlines()
-print(len(inList))
 userList = []
 userId = {}
 winfo = []
 dinfo = []
-matrix = {}
-result = {}
-match = {}
 geoList = {}
+simIntro = []
+simDetail = []
 
-for user in inList:
-	userList.append(user[:len(user)-1])
-	userId[user[:len(user)-1]] = len(userList)-1
+# 数据读入及预处理
+def init():
+	# 连数据库 MongoDB
+	client = MongoClient()
+	db = client.uinfo
+	weibo = db.weibo
+	douban = db.douban
+	geocode = db.geocode
 
-for user in userList:
-	winfo.append(weibo.find_one({"id":user}))
-	dinfo.append(douban.find_one({"id":user}))
+	# 从文件中读入待比对的用户列表
+	inList = open("72.list", "r").readlines()
+	print(len(inList))
 
-for geo in geocode.find({},{"_id":0}):
-	geoList[geo['name']]=geo['detail'][0]['geometry']['location']
-# print(geoList)
+	for user in inList:
+		userList.append(user[:len(user)-1])
+		userId[user[:len(user)-1]] = len(userList)-1
 
-N=(0,89.5)
-S=(0,-89.5)
-MAX_DISTANCE = vincenty(N, S).miles
-# print(MAX_DISTANCE)
+	# 从数据库中读取用户信息
+	for user in userList:
+		winfo.append(weibo.find_one({"id":user}))
+		dinfo.append(douban.find_one({"id":user}))
 
-# outFile = codecs.open("72.out", "w", "utf-8")
-for wid in range(len(userList)):
-	weiboId=userList[wid]
-	weiboInfo = winfo[wid]
-	matrix[weiboId]={"id":weiboId}
-	result[weiboId]={}
+	# 初始化地理位置信息
+	for geo in geocode.find({},{"_id":0}):
+		geoList[geo['name']]=geo['detail'][0]['geometry']['location']
+
+	# 初始化语料库
+	corpusIntro = []
+	corpusDetail = []
+
+	for wid in range(len(userList)):
+		info = winfo[wid]
+		if ("简介" in info and len(info["简介"])>0):
+			detail = info["简介"]
+			doc = ""
+			for x in detail:
+				for y in range(detail[x]):
+					doc += x + " "
+			corpusIntro.append(doc)
+		else:
+			corpusIntro.append("")
 
 	for did in range(len(userList)):
-		doubanId = userList[did]
-		doubanInfo = dinfo[did]
-		matrix[weiboId][doubanId]={"id":doubanId}
+		info = dinfo[did]
+		if ("简介" in info and len(info["简介"])>0):
+			detail = info["简介"]
+			doc = ""
+			for x in detail:
+				for y in range(detail[x]):
+					doc += x + " "
+			corpusIntro.append(doc)
+		else:
+			corpusIntro.append("")
 
-		for attribute in BASIC_LIST:
-			if (attribute in weiboInfo and attribute in doubanInfo):
-				sw = weiboInfo[attribute].lower().replace(" ","")
-				sd = doubanInfo[attribute].lower().replace(" ","")
-				if attribute=="个性域名":
-					if not(sw[0]=='u' or sd.isdigit()):
-						matrix[weiboId][doubanId][attribute] = Levenshtein.jaro_winkler(sw,sd)
-						# outFile.write("%s\t%s - %s:\t%s\t%s\t%s\t%s\n" %(weiboInfo["id"],sw,sd,Levenshtein.distance(sw,sd),Levenshtein.ratio(sw,sd),Levenshtein.jaro(sw,sd),Levenshtein.jaro_winkler(sw,sd)))
-				elif attribute=="地区":
-					sw=sw.replace("海外","").replace("其他","")
-					sd=sd.replace("海外","").replace("其他","")
-					if (len(sw)>0 and len(sd)>0):
-						weiboLocation = (geoList[sw]['lat'], geoList[sw]['lng'])
-						doubanLocation = (geoList[sd]['lat'], geoList[sd]['lng'])
-						distance = vincenty(weiboLocation, doubanLocation).miles
-						matrix[weiboId][doubanId][attribute] = (1 - distance / MAX_DISTANCE) ** 500
-						# if (wid==did):
-						# 	print("%s\t%s - %s:\t%s\t%s" %(weiboInfo["id"],sw,sd,distance,matrix[weiboId][doubanId][attribute]))
-				else:
-					matrix[weiboId][doubanId][attribute] = Levenshtein.jaro_winkler(sw,sd)
-				
-		for attribute in COUNT_LIST:
-			if (attribute in weiboInfo and attribute in doubanInfo):
-				sw = weiboInfo[attribute]
-				sd = doubanInfo[attribute]
+	for wid in range(len(userList)):
+		info = winfo[wid]
+		if ("详情" in info and len(info["详情"])>0):
+			detail = info["详情"]
+			doc = ""
+			for x in detail:
+				for y in range(detail[x]):
+					doc += x + " "
+			corpusDetail.append(doc)
+		else:
+			corpusDetail.append("")
+
+	for did in range(len(userList)):
+		info = dinfo[did]
+		if ("详情" in info and len(info["详情"])>0):
+			detail = info["详情"]
+			doc = ""
+			for x in detail:
+				for y in range(detail[x]):
+					doc += x + " "
+			corpusDetail.append(doc)
+		else:
+			corpusDetail.append("")
+
+	vec = CountVectorizer()
+	countsIntro = vec.fit_transform(corpusIntro)
+	countsDetail = vec.fit_transform(corpusDetail)
+	tra = TfidfTransformer()
+	tfidfIntro = tra.fit_transform(countsIntro)
+	tfidfDetail = tra.fit_transform(countsDetail)
+
+	cnt=0
+	for row in tfidfIntro:
+		simIntro.append(cosine_similarity(row, tfidfIntro).tolist()[0][len(inList):])
+		cnt+=1;
+		if (cnt>=len(inList)):
+			break
+
+	cnt=0
+	for row in tfidfDetail:
+		simDetail.append(cosine_similarity(row, tfidfDetail).tolist()[0][len(inList):])
+		cnt+=1;
+		if (cnt>=len(inList)):
+			break
+
+matrix = {}
+result = {}
+
+# 计算各项属性的相似度
+def sim():
+
+	N=(0,89.5)
+	S=(0,-89.5)
+	MAX_DISTANCE = vincenty(N, S).miles
+
+	for wid in range(len(userList)):
+		weiboId=userList[wid]
+		weiboInfo = winfo[wid]
+		matrix[weiboId]={"id":weiboId}
+		result[weiboId]={}
+
+		for did in range(len(userList)):
+			doubanId = userList[did]
+			doubanInfo = dinfo[did]
+			matrix[weiboId][doubanId]={"id":doubanId}
+
+			if ("昵称" in weiboInfo and "昵称" in doubanInfo):
+				sw = weiboInfo["昵称"].lower().replace(" ","")
+				sd = doubanInfo["昵称"].lower().replace(" ","")
+				matrix[weiboId][doubanId]["昵称"] = Levenshtein.jaro_winkler(sw,sd)
+				if (matrix[weiboId][doubanId]["昵称"] == 0): 
+					matrix[weiboId][doubanId]["昵称"] = min(Levenshtein.ratio(sw,sd),0.5)
+
+			if ("个性域名" in weiboInfo and "个性域名" in doubanInfo):
+				sw = weiboInfo["个性域名"].lower().replace(" ","")
+				sd = doubanInfo["个性域名"].lower().replace(" ","")
+				matrix[weiboId][doubanId]["个性域名"] = Levenshtein.jaro_winkler(sw,sd)
+
+			if ("地区" in weiboInfo and "地区" in doubanInfo):
+				sw = weiboInfo["地区"].lower().replace(" ","").replace("海外","").replace("其他","")
+				sd = doubanInfo["地区"].lower().replace(" ","").replace("海外","").replace("其他","")
 				if (len(sw)>0 and len(sd)>0):
-					count = 0
-					total = 0
-					for x in sw:
-						total += sw[x]
-						if x in sd:
-							count += min(sw[x], sd[x])
-					for x in sd:
-						total += sd[x]
-					total -= count
-					matrix[weiboId][doubanId][attribute] = count/total
-					# outFile.write("%s\t%s\t%s\t%s\n" %(weiboInfo["id"],count,total,count/total))
-		score = 0
-		weight = 0
-		for x in matrix[weiboId][doubanId]:
-			if x!="id" and x in WEIGHT:
-				score += matrix[weiboId][doubanId][x]
-				weight += WEIGHT[x]
-		score /= weight
-		result[weiboId][doubanId]=score
+					weiboLocation = (geoList[sw]['lat'], geoList[sw]['lng'])
+					doubanLocation = (geoList[sd]['lat'], geoList[sd]['lng'])
+					distance = vincenty(weiboLocation, doubanLocation).miles
+					matrix[weiboId][doubanId]["地区"] = (1 - distance / MAX_DISTANCE) ** 100
+
+			matrix[weiboId][doubanId]["简介"] = simIntro[wid][did]
+			matrix[weiboId][doubanId]["详情"] = simDetail[wid][did]
+			
+			'''	
+			for attribute in COUNT_LIST:
+				if (attribute in weiboInfo and attribute in doubanInfo):
+					sw = weiboInfo[attribute]
+					sd = doubanInfo[attribute]
+					if (len(sw)>0 and len(sd)>0):
+						count = 0
+						total = 0
+						for x in sw:
+							total += sw[x]
+							if x in sd:
+								count += min(sw[x], sd[x])
+						for x in sd:
+							total += sd[x]
+						total -= count
+						matrix[weiboId][doubanId][attribute] = count/total
+						# outFile.write("%s\t%s\t%s\t%s\n" %(weiboInfo["id"],count,total,count/total))
+			'''
+
+			score = 0
+			weight = 0
+			for x in matrix[weiboId][doubanId]:
+				if x!="id" and x!="个性域名" and x in WEIGHT: # 
+					score += matrix[weiboId][doubanId][x] * WEIGHT[x]
+					weight += WEIGHT[x]
+			tmpScore = score / weight
+			if not "个性域名" in matrix[weiboId][doubanId] or matrix[weiboId][doubanId]["个性域名"] < tmpScore:
+				matrix[weiboId][doubanId]["个性域名"] = tmpScore
+			score += matrix[weiboId][doubanId]["个性域名"] * WEIGHT["个性域名"]
+			weight += WEIGHT["个性域名"]
+			score /= weight
+			
+			result[weiboId][doubanId]=score
+	
+init()
+
+# for wid in range(len(userList)):
+# 	if "头像" in winfo[wid] and "头像" in dinfo[wid]:
+# 		print("%s\t%s\t%s" %(userList[wid],winfo[wid]["头像"],dinfo[wid]["头像"]))
+# 	else:
+# 		print("%s\t头像缺失" %(userList[wid]))
+# exit()
+
+sim()
+
+match = {}
 					
 for weiboId in userList:
 	score = 0
@@ -135,7 +245,7 @@ for wid in range(len(userList)):
 			if (weight in matrix[weiboId][doubanId]):
 				row.append(matrix[weiboId][doubanId][weight])
 			else:
-				row.append(-1.0)
+				row.append(result[weiboId][doubanId])
 		tempMatrix.append(row)
 		if (did==wid): 
 			tagMatrix.append(1)
@@ -149,7 +259,7 @@ target = np.array(tagMatrix)
 
 k=int(len(userList)/2)
 n=k*len(userList)
-clf = svm.SVC(gamma=0.001, C=1000000.)
+clf = svm.SVC(gamma=0.01, C=1000000.)
 clf.fit(data[:n], target[:n]) 
 ans = clf.predict(data[n:])
 output = list(ans)
@@ -158,6 +268,7 @@ m=len(userList)
 i=0
 j=0
 cnt=0
+cot=0
 for x in output:
 	if (x==1):
 		# outFile.write("%s %s %s" %(i,j,k))
@@ -165,7 +276,8 @@ for x in output:
 			cnt+=1
 			outFile.write("%s " %(i))
 		else:
-			outFile.write("%s " %(-1))			
+			outFile.write("%s " %(-1))
+			cot+=1		
 	i+=1
 	# outFile.write("%s " %(x))
 	if (i==m):
@@ -175,4 +287,5 @@ for x in output:
 # outFile.write("Count:%s\n" %(cnt))
 # outFile.write("Total:%s\n" %(j))
 print("Count: %s" %(cnt))
+print("Error: %s" %(cot))
 print("Total: %s" %(j))
