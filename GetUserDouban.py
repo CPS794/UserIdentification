@@ -12,11 +12,26 @@ collection = db.douban_original
 inList = open("243.list", "r").readlines();
 print(len(inList))
 
+outFile = codecs.open("72.out", "w", "utf-8")
 for inFileName in inList:
 	inFile = codecs.open("D:\\Projects\\SublimeText\\Jianshu\\243\\D\\"+inFileName[:len(inFileName)-1]+".html", "r", "utf-8")
 	content = inFile.read()
 	inFile.close()
 	soup = BeautifulSoup(content, "html5lib")
+	'''
+	failed = soup.find_all("div", "pic")
+	if len(failed) == 0:
+		print("该用户已经主动注销帐号: "+inFileName[:len(inFileName)-1])
+	else:
+		if soup.find_all(id="friend")[0].h2==None:
+			outFile.write(inFileName[:len(inFileName)-1]+"\t"+"0"+"\t"+"0"+"\n")
+		else:
+			friends = soup.find_all(id="friend")[0].h2.span.a.contents[0].replace("成员","关注: ")
+			fans = soup.find_all("p","rev-link")[0].a.contents[0]
+			fans = fans[fans.find("被"):].replace("人关注","").replace("被","粉丝: ")
+			outFile.write(inFileName[:len(inFileName)-1]+"\t"+friends+"\t"+fans+"\n")
+
+	'''
 	failed = soup.find_all("div", "pic")
 	if len(failed) == 0:
 		print("该用户已经主动注销帐号: "+inFileName[:len(inFileName)-1])
@@ -40,3 +55,4 @@ for inFileName in inList:
 			collectedInfo["简介"] = list(usefulInfo[0].stripped_strings)
 		# print(collectedInfo)
 		collection.insert_one(collectedInfo)
+	# '''
