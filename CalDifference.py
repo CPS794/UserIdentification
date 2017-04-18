@@ -13,7 +13,7 @@ from sklearn.metrics.pairwise import cosine_similarity
 
 BASIC_LIST=["地区", "个性域名", "昵称"]
 COUNT_LIST=["详情", "简介"]
-WEIGHT={"昵称":7,"个性域名":5,"地区":4,"简介":3,"详情":2} # 
+WEIGHT={"昵称":1,"个性域名":1,"地区":1,"简介":1,"详情":1,"关注":1, "粉丝":1} # 
 
 userList = []
 userId = {}
@@ -22,9 +22,14 @@ dinfo = []
 geoList = {}
 simIntro = []
 simDetail = []
+maxFriendsWeibo = 0
+maxFriendsDouban = 0
+maxFansWeibo = 0
+maxFansDouban = 0
 
 # 数据读入及预处理
 def init():
+	global maxFriendsWeibo, maxFriendsDouban, maxFansWeibo, maxFansDouban
 	# 连数据库 MongoDB
 	client = MongoClient()
 	db = client.uinfo
@@ -44,6 +49,24 @@ def init():
 	for user in userList:
 		winfo.append(weibo.find_one({"id":user}))
 		dinfo.append(douban.find_one({"id":user}))
+
+	# 初始化粉丝数和关注数的最大值
+	for wid in range(len(userList)):
+		info = winfo[wid]
+		if ("关注" in info):
+			maxFriendsWeibo = max(maxFriendsWeibo,info["关注"])
+		if ("粉丝" in info):
+			maxFansWeibo = max(maxFansWeibo,info["粉丝"])
+	for did in range(len(userList)):
+		info = dinfo[did]
+		if ("关注" in info):
+			maxFriendsDouban = max(maxFriendsDouban,info["关注"])
+		if ("粉丝" in info):
+			maxFansDouban = max(maxFansDouban,info["粉丝"])
+	# print("Weibo Friends: %s" %(maxFriendsWeibo))
+	# print("Weibo Fans: %s" %(maxFansWeibo))
+	# print("Douban Friends: %s" %(maxFriendsDouban))
+	# print("Douban Fans: %s" %(maxFansDouban))
 
 	# 初始化地理位置信息
 	for geo in geocode.find({},{"_id":0}):
@@ -167,6 +190,16 @@ def sim():
 			matrix[weiboId][doubanId]["简介"] = simIntro[wid][did]
 			matrix[weiboId][doubanId]["详情"] = simDetail[wid][did]
 			
+			if ("关注" in weiboInfo and "关注" in doubanInfo):
+				sw = weiboInfo["关注"]
+				sd = doubanInfo["关注"]
+				matrix[weiboId][doubanId]["关注"] = sw/maxFriendsWeibo - sd/maxFriendsDouban			
+			
+			if ("粉丝" in weiboInfo and "粉丝" in doubanInfo):
+				sw = weiboInfo["粉丝"]
+				sd = doubanInfo["粉丝"]
+				matrix[weiboId][doubanId]["粉丝"] = sw/maxFansWeibo - sd/maxFansDouban
+
 			'''	
 			for attribute in COUNT_LIST:
 				if (attribute in weiboInfo and attribute in doubanInfo):
@@ -208,6 +241,10 @@ init()
 # 		print("%s\t%s\t%s" %(userList[wid],winfo[wid]["头像"],dinfo[wid]["头像"]))
 # 	else:
 # 		print("%s\t头像缺失" %(userList[wid]))
+# for wid in range(len(userList)):
+# 	if ("关注" in winfo[wid] and "关注" in dinfo[wid]):
+# 		print("%s\t%s\t%s\t%s\t%s" %(userList[wid],winfo[wid]["关注"]/maxFriendsWeibo,winfo[wid]["粉丝"]/maxFansWeibo,dinfo[wid]["关注"]/maxFriendsWeibo,dinfo[wid]["粉丝"]/maxFansWeibo))
+
 # exit()
 
 sim()
@@ -245,7 +282,7 @@ for wid in range(len(userList)):
 			if (weight in matrix[weiboId][doubanId]):
 				row.append(matrix[weiboId][doubanId][weight])
 			else:
-				row.append(result[weiboId][doubanId])
+				row.append(-1)
 		tempMatrix.append(row)
 		if (did==wid): 
 			tagMatrix.append(1)
