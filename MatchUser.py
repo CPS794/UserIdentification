@@ -250,7 +250,14 @@ def save(outFile,saveObject):
 		out.write(json.dumps(x))
 		out.write("\n")
 
-init()
+def load(inFile,saveObject):
+	inList = open(inFile, "r").readlines()
+	i = 0
+	for x in saveObject:
+		x = json.loads(inList[i])
+		i += 1
+
+# init()
 
 # for wid in range(len(userList)):
 # 	if "头像" in winfo[wid] and "头像" in dinfo[wid]:
@@ -262,9 +269,15 @@ init()
 # 		print("%s\t%s\t%s\t%s\t%s" %(userList[wid],winfo[wid]["关注"]/maxFriendsWeibo,winfo[wid]["粉丝"]/maxFansWeibo,dinfo[wid]["关注"]/maxFriendsWeibo,dinfo[wid]["粉丝"]/maxFansWeibo))
 
 
-sim()
+# sim()
 
-save(outFile,[matrix,result])
+# save(outFile,[matrix,result])
+# exit()
+
+# load(outFile,[matrix,result])
+inList = open(outFile, "r").readlines()
+matrix = json.loads(inList[0])
+result = json.loads(inList[1])
 exit()
 
 match = {}
@@ -321,7 +334,7 @@ clf = DecisionTreeClassifier()
 clf.fit(data[:n], target[:n]) 
 ans = clf.predict(data[n:])
 output = list(ans)
-outList = codecs.open("72.out", "w", "utf-8")
+outList = codecs.open("temp.out", "w", "utf-8")
 m=len(userList)
 i=0
 j=0
