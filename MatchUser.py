@@ -12,6 +12,7 @@ from sklearn.naive_bayes import MultinomialNB
 from sklearn.naive_bayes import BernoulliNB
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.tree import ExtraTreeClassifier
+from sklearn.neighbors.nearest_centroid import NearestCentroid
 
 fname = "72"
 inFile = fname + ".list"
@@ -94,8 +95,9 @@ k=int(len(userList)/2)
 n=k*len(userList)
 # clf = svm.SVC(gamma=0.002, C=1000000.)
 # clf = GaussianNB([(len(userList)-1)/len(userList),1/len(userList)])
-clf = DecisionTreeClassifier()
+# clf = DecisionTreeClassifier()
 # clf = ExtraTreeClassifier()
+clf = NearestCentroid()
 clf.fit(data[:n], target[:n]) 
 ans = clf.predict(data[n:])
 output = list(ans)
