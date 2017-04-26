@@ -14,7 +14,7 @@ from sklearn.tree import DecisionTreeClassifier
 from sklearn.tree import ExtraTreeClassifier
 from sklearn.neighbors.nearest_centroid import NearestCentroid
 
-fname = "72"
+fname = "1301"
 inFile = fname + ".list"
 outFile = fname + ".out"
 
@@ -93,11 +93,11 @@ target = np.array(tagMatrix)
 
 k=int(len(userList)/2)
 n=k*len(userList)
-# clf = svm.SVC(gamma=0.002, C=1000000.)
+clf = svm.SVC(gamma=0.01, C=1000000.)
 # clf = GaussianNB([(len(userList)-1)/len(userList),1/len(userList)])
 # clf = DecisionTreeClassifier()
 # clf = ExtraTreeClassifier()
-clf = NearestCentroid()
+# clf = NearestCentroid()
 clf.fit(data[:n], target[:n]) 
 ans = clf.predict(data[n:])
 output = list(ans)
@@ -124,6 +124,51 @@ for x in output:
 		i=0
 # outList.write("Count:%s\n" %(cnt))
 # outList.write("Total:%s\n" %(j))
+outList.write("\n")
+print("Count: %s" %(cnt))
+print("Error: %s" %(cot))
+print("Total: %s" %(j))
+
+i=0
+j=0
+cnt=0
+cot=0
+max0 = -1
+max1 = -1
+rec0 = -1
+rec1 = -1
+for x in output:
+	if (x==1):
+		if result[userList[k+j]][userList[i]] > max1:
+			max1 = result[userList[k+j]][userList[i]]
+			rec1 = i
+	else:
+		if result[userList[k+j]][userList[i]] > max0:
+			max0 = result[userList[k+j]][userList[i]]
+			rec0 = i
+	i+=1
+	# outList.write("%s " %(x))
+	if (i==m):
+		if (rec1 != -1):
+			if (rec1==k+j):
+				cnt+=1
+				outList.write("%s\n" %(k+j))
+			else:
+				cot+=1
+				outList.write("%s " %(-1))
+		elif (rec1==-1 and max0>0.05):
+			if (rec0==k+j):
+				cnt+=1
+				outList.write("%s\n" %(k+j))
+			else:
+				cot+=1
+				outList.write("%s " %(-1))
+		j+=1
+		i=0
+		max0 = -1
+		max1 = -1
+		rec0 = -1
+		rec1 = -1
 print("Count: %s" %(cnt))
 print("Error: %s" %(cot))
 print("Total: %s" %(j))

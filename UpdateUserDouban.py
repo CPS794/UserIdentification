@@ -11,7 +11,7 @@ db = client.uinfo
 # collection = db.douban
 collection = db.weibo
 
-inList = open("243-weibos.data", "r").readlines();
+inList = open("2358-weibos.data", "r").readlines();
 print(len(inList))
 
 for user in inList:

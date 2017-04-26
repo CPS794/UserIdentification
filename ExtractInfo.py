@@ -35,7 +35,9 @@ def mergeInto(mapTo, mapFrom):
 	return mapTo
 	
 def count(info):
-	if isinstance(info, str):
+	if isinstance(info, int):
+		return wordCount(str(info))
+	elif isinstance(info, str):
 		return wordCount(info)
 	elif isinstance(info, list):
 		result = {}
@@ -54,7 +56,13 @@ def extract(userInfo):
 	for info in userInfo:
 		if not(info in IGNORE_LIST):
 			if info in RESERVED_LIST:
-				newInfo[info] = userInfo[info]
+				if info == "地区":
+					newInfo[info] = userInfo[info].replace("海外","").replace("其他","")
+				elif info == "个性域名":
+					if not ("/" in userInfo[info]):
+						newInfo[info] = userInfo[info]
+				else:
+					newInfo[info] = userInfo[info]
 			elif info in WORD_COUNT_LIST:
 				newInfo[info] = count(userInfo[info])
 				detail = mergeInto(detail, newInfo[info])
@@ -73,7 +81,7 @@ weibo_new = db.weibo
 douban_ori = db.douban_original
 douban_new = db.douban
 
-inList = open("243.list", "r").readlines();
+inList = open("2308.list", "r").readlines();
 print(len(inList))
 
 for inFileName in inList:

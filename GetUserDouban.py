@@ -9,12 +9,12 @@ client = MongoClient()
 db = client.uinfo
 collection = db.douban_original
 
-inList = open("243.list", "r").readlines();
+inList = open("2358.list", "r").readlines();
 print(len(inList))
 
 outFile = codecs.open("72.out", "w", "utf-8")
 for inFileName in inList:
-	inFile = codecs.open("D:\\Projects\\SublimeText\\Jianshu\\243\\D\\"+inFileName[:len(inFileName)-1]+".html", "r", "utf-8")
+	inFile = codecs.open("D:\\Projects\\SublimeText\\Jianshu\\2358\\D\\"+inFileName[:len(inFileName)-1]+".html", "r", "utf-8")
 	content = inFile.read()
 	inFile.close()
 	soup = BeautifulSoup(content, "html5lib")

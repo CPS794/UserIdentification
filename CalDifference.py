@@ -17,13 +17,13 @@ from sklearn.naive_bayes import BernoulliNB
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.tree import ExtraTreeClassifier
 
-fname = "2308"
+fname = "1301"
 inFile = fname + ".list"
 outFile = fname + ".out"
 
 BASIC_LIST=["地区", "个性域名", "昵称"]
 COUNT_LIST=["详情", "简介"]
-WEIGHT={"昵称":1,"个性域名":1,"地区":1,"简介":1,"详情":1} # ,"关注":1, "粉丝":1
+WEIGHT={"昵称":1,"个性域名":1,"地区":1,"简介":1,"详情":1,"关注":0, "粉丝":0} # 
 
 userList = []
 userId = {}
@@ -65,14 +65,22 @@ def init():
 		info = winfo[wid]
 		if ("关注" in info):
 			maxFriendsWeibo = max(maxFriendsWeibo,info["关注"])
+		else:
+			winfo[wid]["关注"]=0
 		if ("粉丝" in info):
 			maxFansWeibo = max(maxFansWeibo,info["粉丝"])
+		else:
+			winfo[wid]["粉丝"]=0
 	for did in range(len(userList)):
 		info = dinfo[did]
 		if ("关注" in info):
 			maxFriendsDouban = max(maxFriendsDouban,info["关注"])
+		else:
+			dinfo[did]["关注"]=0
 		if ("粉丝" in info):
 			maxFansDouban = max(maxFansDouban,info["粉丝"])
+		else:
+			dinfo[did]["粉丝"]=0
 	# print("Weibo Friends: %s" %(maxFriendsWeibo))
 	# print("Weibo Fans: %s" %(maxFansWeibo))
 	# print("Douban Friends: %s" %(maxFriendsDouban))
@@ -186,7 +194,14 @@ def sim():
 			if ("个性域名" in weiboInfo and "个性域名" in doubanInfo):
 				sw = weiboInfo["个性域名"].lower().replace(" ","")
 				sd = doubanInfo["个性域名"].lower().replace(" ","")
-				matrix[weiboId][doubanId]["个性域名"] = Levenshtein.jaro_winkler(sw,sd)
+				if not("/" in sw):
+					default = True
+					for x in sd:
+						if not (x in "0123456789"):
+							default = False
+							break
+					if not default:
+						matrix[weiboId][doubanId]["个性域名"] = Levenshtein.jaro_winkler(sw,sd)
 
 			if ("地区" in weiboInfo and "地区" in doubanInfo):
 				sw = weiboInfo["地区"].lower().replace(" ","").replace("海外","").replace("其他","")
@@ -232,14 +247,14 @@ def sim():
 			score = 0
 			weight = 0
 			for x in matrix[weiboId][doubanId]:
-				if x!="id" and x!="个性域名" and x in WEIGHT: # 
-					score += matrix[weiboId][doubanId][x] * WEIGHT[x]
+				if x!="id" and x in WEIGHT: #  and x!="个性域名"
+					score += abs(matrix[weiboId][doubanId][x]) * WEIGHT[x]
 					weight += WEIGHT[x]
-			tmpScore = score / weight
-			if not "个性域名" in matrix[weiboId][doubanId] or matrix[weiboId][doubanId]["个性域名"] < tmpScore:
-				matrix[weiboId][doubanId]["个性域名"] = tmpScore
-			score += matrix[weiboId][doubanId]["个性域名"] * WEIGHT["个性域名"]
-			weight += WEIGHT["个性域名"]
+			# tmpScore = score / weight
+			# if not "个性域名" in matrix[weiboId][doubanId] or matrix[weiboId][doubanId]["个性域名"] < tmpScore:
+			# 	matrix[weiboId][doubanId]["个性域名"] = tmpScore
+			# score += matrix[weiboId][doubanId]["个性域名"] * WEIGHT["个性域名"]
+			# weight += WEIGHT["个性域名"]
 			score /= weight
 			
 			result[weiboId][doubanId]=score
@@ -260,10 +275,22 @@ init()
 # for wid in range(len(userList)):
 # 	if ("关注" in winfo[wid] and "关注" in dinfo[wid]):
 # 		print("%s\t%s\t%s\t%s\t%s" %(userList[wid],winfo[wid]["关注"]/maxFriendsWeibo,winfo[wid]["粉丝"]/maxFansWeibo,dinfo[wid]["关注"]/maxFriendsWeibo,dinfo[wid]["粉丝"]/maxFansWeibo))
-
+print("maxFriendsWeibo: %s" %(maxFriendsWeibo))
+print("maxFriendsDouban: %s" %(maxFriendsDouban))
+print("maxFansWeibo: %s" %(maxFansWeibo))
+print("maxFansDouban: %s" %(maxFansDouban))
 
 sim()
-
+# outF = codecs.open(outFile, "w", "utf-8")
+# for wid in range(len(userList)):
+# 	for weight in WEIGHT:
+# 		if weight in matrix[userList[wid]][userList[wid]]:
+# 			outF.write("%s\t" %(abs(matrix[userList[wid]][userList[wid]][weight])))
+# 		else:
+# 			outF.write("-1\t")
+# 	outF.write("%s\t" %(result[userList[wid]][userList[wid]]))
+# 	outF.write("%s\t%s\t%s\t%s\n" %(winfo[wid]["关注"],winfo[wid]["粉丝"],dinfo[wid]["关注"],dinfo[wid]["粉丝"]))
+# 	# outF.write("\n")
 save(outFile,[matrix,result])
 exit()
 
