@@ -9,7 +9,7 @@ import jieba.posseg as pseg
 REMOVE_LIST=['x','u','p','c']
 REMOVE_KEY_LIST=['.']
 IGNORE_LIST=["_id","认证"]
-RESERVED_LIST=["id", "昵称", "地区", "个性域名", "头像"]
+RESERVED_LIST=["id", "昵称", "地区", "个性域名", "头像", "关注", "粉丝"]
 WORD_COUNT_LIST=["简介", "个性签名"]
 RESERVED_COUNT_LIST=["学习工作"]
 
